@@ -35,11 +35,19 @@ fi
 chmod -R ug=rwx ${DIR_out}
 
 #-----------------------#
-# cp -R "dir1"/. "dir2" 
-# copy files in "dir1", not copy "dir1" self 
+# cp -R "dir1"/. "dir2"
+# copy files in "dir1", not copy "dir1" self
 #:
-cp -R ${DIR_src_shaders}.   ${DIR_dst_shaders} 
-cp -R ${DIR_src_jsons}.     ${DIR_dst_jsons} 
+cp -R ${DIR_src_shaders}.   ${DIR_dst_shaders}
+cp -R ${DIR_src_jsons}.     ${DIR_dst_jsons}
+
+#------------- build SFML ------------------
+# cd deps/SFML
+# mkdir build
+# cmake ..
+# make
+# cd ..
+# cd ..
 
 #------------- build cpp/c# ----------------
 cd build

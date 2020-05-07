@@ -46,7 +46,7 @@ set (CMAKE_CXX_EXTENSIONS OFF)
 #---------------------------------------------------#
 #                project name
 #---------------------------------------------------#
-project ( cppEmptyProject )
+project ( sandbank )
 
 
 #-- *** test: 0.1 ***
@@ -92,16 +92,16 @@ configure_file(
 #-- 创建变量 PIXEL_FILES （是个 list）
 #-- 包含 主进程需要的所有 .c/.cpp 文件
 #   GLOB_RECURSE 会递归访问目录，这是一种粗粒度的写法
-#   如果想要精细控制，应该改用 GLOB 
+#   如果想要精细控制，应该改用 GLOB
 #   请把所有 .c/.cpp 文件写入 src 目录，及其递归子目录下，
 #   然后就什么都不用管了
-FILE(GLOB_RECURSE   PIXEL_FILES   
+FILE(GLOB_RECURSE   PIXEL_FILES
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
                     )
 
 #---------------------------------------------------#
-#                   emptyApp
+#                   sandbank
 #---------------------------------------------------#
 
 if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.16 )
@@ -109,17 +109,17 @@ if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.16 )
 endif()
 
 
-add_executable( emptyApp ${PIXEL_FILES} )
+add_executable( sandbank ${PIXEL_FILES} )
 
 
 #-- set libs/dlls output-name --> "emptyApp.xxx"
-set_target_properties(emptyApp PROPERTIES PREFIX "")
-set_target_properties(emptyApp PROPERTIES OUTPUT_NAME "emptyApp")
+set_target_properties(sandbank PROPERTIES PREFIX "")
+set_target_properties(sandbank PROPERTIES OUTPUT_NAME "sandbank")
 
 
 if( ${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.16 )
-    target_precompile_headers( emptyApp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/_pch_/pch.h ) # PCH
-    set_target_properties( emptyApp PROPERTIES UNITY_BUILD ON) # UNITY
+    target_precompile_headers( sandbank PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/_pch_/pch.h ) # PCH
+    set_target_properties( sandbank PROPERTIES UNITY_BUILD ON) # UNITY
 endif()
 
 
@@ -132,7 +132,7 @@ endif()
 # 如果某个目录，内含 .h/.hpp 文件，这个目录就会被收集到一个 list 中
 # 最终返回这个 list
 MACRO( collect_head_dirs return_list )
-    FILE(GLOB_RECURSE   new_list 
+    FILE(GLOB_RECURSE   new_list
                         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
                         )
@@ -155,7 +155,7 @@ message(STATUS "[INFO] Found ${src_header_dirs_count} header directories.")
 
 
 # ===== 设置 include 目录路径 =====
-target_include_directories ( emptyApp PUBLIC
+target_include_directories ( sandbank PUBLIC
 
     # === 跨平台宏文件（cmake创建） ===
     ${EXECUTABLE_OUTPUT_PATH}/sysconfig
@@ -163,12 +163,16 @@ target_include_directories ( emptyApp PUBLIC
     # === 第三方库 ===
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/rapidjson
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/fmt-6.1.2/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/SFML/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/magic_enum
     # 在此处添加更多 第三方库
     # 具体写法，请查阅各个 库文档
     # ...
 
 
     # === 项目代码 ===
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+
     # 自动包含 src/ 目录下的所有 有效目录
     ${src_header_dirs}
     )
@@ -177,38 +181,78 @@ target_include_directories ( emptyApp PUBLIC
 # 与上一条几乎一样
 # 但是添加了 SYSTEM 关键词。
 # 添加在此的 第三方库，会被屏蔽掉一部分 warnings
-target_include_directories ( emptyApp SYSTEM PUBLIC
+target_include_directories ( sandbank SYSTEM PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/deps
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/stb_image
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/glm.9.9.5
     )
+
+#-- glfw --
+if( UNIX )
+    target_include_directories ( sandbank PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/deps/glfw_unix/include)
+else()
+    target_include_directories ( sandbank PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/deps/glfw_win/include)
+endif( UNIX )
 
 
 #---------------------------------------------------#
 #             子目录 CMakeLists.txt
 #---------------------------------------------------#
-#-- 子 CMakeLists.txt 执行的 中间产物，将分别放在 
-#      build/src  build/libhello  目录中。
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/fmt-6.1.2 EXCLUDE_FROM_ALL)
+#-- 子 CMakeLists.txt 执行的 中间产物，将分别放在
+#      build/deps  build/lib  目录中。
+if( UNIX )
+    #-- 官网推荐，避免编译 test --
+    # 需要在 add_subdirectory 语句之前
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/deps/glfw_unix)
+    add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/deps/tprInUnix)
+else()
+    add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/deps/tprInWin)
+endif( UNIX )
 
+add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/deps/glad)
+add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/deps/tprGeneral)
+add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/deps/sqlite.3.28)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/fmt-6.1.2 EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/SFML EXCLUDE_FROM_ALL)
 
 #---------------------------------------------------#
 #             target_link_libraries
 #---------------------------------------------------#
 if ( UNIX )
-    target_link_libraries( emptyApp 
+    target_link_libraries( sandbank
                             fmt
+                            sfml-graphics
+                            sfml-window
+                            sfml-system
+                            tprGeneral
+                            tprInUnix
+                            glad
+                            glfw
+                            ${GLFW_LIBRARIES}
+                            SQLite
                             )
 
 else()
-    target_link_libraries( emptyApp
+    target_link_libraries( sandbank
                             fmt
+                            sfml-graphics
+                            sfml-window
+                            sfml-system
+                            tprGeneral
+                            tprInWin
+                            glad
+                            ${CMAKE_CURRENT_SOURCE_DIR}/deps/glfw_win/lib-vc2017/glfw3.lib
+                            SQLite
                             )
 endif( UNIX )
 
 
 # 编译选项，可以自行增删
-target_compile_options( emptyApp
-                        PRIVATE 
+target_compile_options( sandbank
+                        PRIVATE
                         -Wall -Wextra
                         -Wno-c++98-compat
                         -Wno-c++98-compat-pedantic
@@ -224,7 +268,7 @@ target_compile_options( emptyApp
                         -Wno-missing-variable-declarations  #++ need ++
                         -Wno-missing-prototypes
 
-                        -Wno-old-style-cast   #---- tmp ---- 
+                        -Wno-old-style-cast   #---- tmp ----
                         -Wno-unused-variable #----- tmp ----
                         -Wno-unused-private-field #----- tmp ----
 
